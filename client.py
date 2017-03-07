@@ -3,7 +3,7 @@ import sys
 import socket
 import time
 HOST = 'localhost'
-PORT = 1111
+PORT = 9500
 BUFSIZ = 1024
 ADDR = (HOST,PORT)
 
@@ -34,26 +34,48 @@ def confirm(cliSockfd,client_command):
     msg = cliSockfd.recv(4096)
     if msg == 'no problem':
         return True
+
+def handle1(act,filename):
+    if act == 'put':
+        if confirm(cliSockfd,client_command):
+            sendfile(filename)
+        else:
+            print 'server error1!'
+    elif act == 'get':
+        if confirm(cliSockfd,client_command):
+            recvfile(filename)
+        else:
+            print 'server error2!'
+    else:
+        print 'command error!'
+def handle2(act):
+    if act == 'ls':
+        cliSockfd.send('ls')
+        while True:
+            msg = cliSockfd.recv(1024)
+            if msg == 'EOF':
+                break
+            print msg
+    else:
+        print 'command error'
+
 try:
     cliSockfd.connect(ADDR)
+    print 'connect to ',ADDR
     while True:
         client_command = raw_input('>>>')
         if not client_command:
             continue
-        act,filename = client_command.split()
-        print act
-        if act == 'put':
-            if confirm(cliSockfd,client_command):
-                sendfile(filename)
-            else:
-                print 'server error1!'
-        elif act == 'get':
-            if confirm(cliSockfd,client_command):
-                recvfile(filename)
-            else:
-                print 'server error2!'
+        msg = client_command.split()
+        if len(msg) == 2:
+            handle1(*msg)
+        elif len(msg) == 1 and msg != ['close']:
+            handle2(*msg)
+        elif len(msg) == 1 and msg == ['close']:
+            cliSockfd.send('close')
+            break
         else:
-            print 'command error!'
+            print 'command error'
 except socket.error,e:
     print 'error:',e
 finally:
